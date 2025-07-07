@@ -5,12 +5,12 @@
   become: true
   become_user: root
 
-  #- name: Setup MapR repositories
-  #  hosts: mapr-core
-  #  roles:
-  #    - mapr-configure-repository
-  #  become: true
-  #  become_user: root
+#- name: Setup MapR repositories
+#  hosts: mapr-core
+#  roles:
+#    - mapr-configure-repository
+#  become: true
+#  become_user: root
 
 - name: Apply common configuration to all nodes
   hosts: common

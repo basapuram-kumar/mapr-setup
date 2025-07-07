@@ -1,5 +1,54 @@
 ---
 # Install MapR Core components for all machines
+
+# Setup MapR repositories only when needed for package installation
+- name: Download MapR GPG key with authentication for RedHat
+  get_url:
+    url: "{{ mapr_gpg_url }}"
+    dest: /tmp/maprgpg.key
+    url_username: "{{ mapr_repo_username }}"
+    url_password: "{{ mapr_repo_password }}"
+    mode: '0644'
+  when: ansible_os_family == 'RedHat'
+
+- name: Import RPM key for RedHat
+  rpm_key: state=present key=/tmp/maprgpg.key
+  when: ansible_os_family == 'RedHat'
+
+- name: Clean up temporary GPG key file for RedHat
+  file:
+    path: /tmp/maprgpg.key
+    state: absent
+  when: ansible_os_family == 'RedHat'
+
+- name: Create MapR Releases Repository for RedHat
+  yum_repository:
+    name: MapR_Core
+    description: MapR Core Components
+    baseurl: "{{ mapr_release_url }}"
+    gpgcheck: yes
+    gpgkey: "{{ mapr_gpg_url }}"
+    username: "{{ mapr_repo_username }}"
+    password: "{{ mapr_repo_password }}"
+    async: yes
+    protect: yes
+    enabled: yes
+  when: ansible_os_family == 'RedHat'
+
+- name: Create MapR Ecosystem Repository for RedHat
+  yum_repository:
+    name: MapR_Ecosystem
+    description: MapR Ecosystem Components
+    baseurl: "{{ mapr_ecosystem_url }}"
+    gpgcheck: yes
+    gpgkey: "{{ mapr_gpg_url }}"
+    username: "{{ mapr_repo_username }}"
+    password: "{{ mapr_repo_password }}"
+    async: yes
+    protect: yes
+    enabled: yes
+  when: ansible_os_family == 'RedHat'
+
 - name: Install mapr-core
   vars:
     packages_Suse: ['mapr-compat-suse', 'mapr-core', 'mapr-core-internal', 'mapr-kafka']
@@ -7,6 +56,9 @@
     packages_Debian: ['mapr-core', 'mapr-core-internal', 'mapr-kafka']
   package: name={{ item }} state=present
   with_items: "{{ vars['packages_' + ansible_os_family] }}"
+
+
+
 - name: Configure core-site.xml
   vars:
     aws_credentials_file: "{{ lookup('env','HOME') }}/.aws/credentials"

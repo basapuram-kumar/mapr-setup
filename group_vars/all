@@ -1,5 +1,10 @@
 mapr_release_url: https://package.ezmeral.hpe.com/releases//v6.1.1/redhat
 mapr_ecosystem_url: https://package.ezmeral.hpe.com/releases//MEP/MEP-6.3.6/redhat
+mapr_gpg_url: https://package.ezmeral.hpe.com/releases/pub/maprgpg.key
+
+# MapR Repository Authentication Credentials
+mapr_repo_username: john.whitmore@acceldata.io
+mapr_repo_password: X8ZjKlYgOSq2VEg1eVuzgi4Yud8c-qBVjQyKubWi5WfkJ2D2yYNQeEIDrr0pf7DEY0SxU8cgXR78JwZzMzc4Ig
 
 # Patches are only installed when variable mapr_patch_url is set
 #mapr_patch_url: http://package.mapr.com/patches/releases/v5.2.0/
