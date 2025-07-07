@@ -1,0 +1,3 @@
+# Copying all hosts to all cluster nodes
+- name: Copying host names to all nodes
+  template: src=etc-hosts dest=/etc/hosts

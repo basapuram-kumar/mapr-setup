@@ -1,0 +1,2 @@
+- name: create directory in mfs
+  shell:  hadoop fs -mkdir -p /user/{{service_account_name_user}}

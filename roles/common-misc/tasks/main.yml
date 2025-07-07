@@ -1,0 +1,23 @@
+---
+- name: Install misc stuff - Midnight commander, wget, Python MySQL (Red Hat 7 and older)
+  vars:
+    packages_RedHat: ['mc', 'wget', 'MySQL-python']
+  package: name={{ item }} state=present
+  with_items: "{{ vars['packages_' + ansible_os_family] }}"
+  when: ansible_os_family == 'RedHat' and ansible_distribution_major_version|int < 8
+
+- name: Install misc stuff - Midnight commander, wget, Python MySQL (Red Hat 8+)
+  vars:
+    packages_RedHat: ['mc', 'wget', 'python3-PyMySQL']
+  package: name={{ item }} state=present
+  with_items: "{{ vars['packages_' + ansible_os_family] }}"
+  when: ansible_os_family == 'RedHat' and ansible_distribution_major_version|int >= 8
+
+- name: Install misc stuff - Midnight commander, wget, Python MySQL (non-Red Hat)
+  vars:
+    packages_Suse: ['mc', 'wget', 'python-mysql']
+    packages_Debian: ['mc', 'wget', 'python-mysqldb']
+  package: name={{ item }} state=present
+  with_items: "{{ vars['packages_' + ansible_os_family] }}"
+  when: ansible_os_family != 'RedHat'
+

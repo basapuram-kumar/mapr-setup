@@ -1,0 +1,4 @@
+
+- name: Create maprfs:///user/kumar directory
+  shell: chown {{service_account_name_user}}:{{service_account_name_group}}  /home/longlived_ticket_kumar
+  

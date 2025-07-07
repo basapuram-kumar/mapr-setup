@@ -1,0 +1,3 @@
+- name: do source command on bash_profile file.
+  shell: source /home/kumar/.bash_profile 
+ 

@@ -1,0 +1,28 @@
+---
+- name: Install NTP (Red Hat 7 and older)
+  package: name=ntp state=present
+  when: ansible_os_family == 'RedHat' and ansible_distribution_major_version|int < 8
+
+- name: Install chrony (Red Hat 8+)
+  package: name=chrony state=present
+  when: ansible_os_family == 'RedHat' and ansible_distribution_major_version|int >= 8
+
+- name: Install NTP (non-Red Hat systems)
+  package: name=ntp state=present
+  when: ansible_os_family != 'RedHat'
+
+- name: Start the ntp service (Red Hat 7 and older)
+  service: name=ntpd state=started enabled=yes
+  when: ansible_os_family == 'RedHat' and ansible_distribution_major_version|int < 8
+
+- name: Start the chrony service (Red Hat 8+)
+  service: name=chronyd state=started enabled=yes
+  when: ansible_os_family == 'RedHat' and ansible_distribution_major_version|int >= 8
+
+- name: Start the ntp service (non-Red Hat systems)
+  vars:
+    service_Suse: ntpd
+    service_Debian: ntp
+  service: name="{{ vars['service_' + ansible_os_family] }}" state=started enabled=yes
+  when: ansible_os_family != 'RedHat'
+

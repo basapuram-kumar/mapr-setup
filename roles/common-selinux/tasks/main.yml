@@ -1,0 +1,15 @@
+---
+- name: Install required Ansible package to handle SElinux (Red Hat 7 and older)
+  package: name=libselinux-python state=present
+  when: ansible_os_family == 'RedHat' and ansible_distribution_major_version|int < 8
+
+- name: Install required Ansible package to handle SElinux (Red Hat 8+)
+  package: name=python3-libselinux state=present
+  when: ansible_os_family == 'RedHat' and ansible_distribution_major_version|int >= 8
+
+- name: Install required Ansible package to handle SElinux (non-Red Hat)
+  package: name=libselinux-python state=present
+  when: ansible_os_family != 'RedHat'
+
+- name: Disable SElinux
+  selinux: state=disabled

@@ -1,0 +1,4 @@
+
+- name: bash_profile file adding MapR_tikcet file location
+  lineinfile: dest=/home/{{service_account_name_user}}/.bash_profile  line="export MAPR_TICKETFILE_LOCATION=/home/longlived_ticket_kumar"
+

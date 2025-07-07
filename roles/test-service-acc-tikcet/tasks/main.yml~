@@ -1,0 +1,4 @@
+
+- name: Creating service account ticket(Kumar here account)
+  shell: maprlogin generateticket -type servicewithimpersonation -cluster demo.mapr.com  -user {{service_account_name_user}} -out /tmp/longlived_ticket_kumar -duration 1314000:0:0 -renewal 1314000:0:0
+

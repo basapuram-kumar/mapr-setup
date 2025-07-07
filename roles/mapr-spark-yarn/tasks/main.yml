@@ -1,0 +1,71 @@
+---
+# Install Spark on YARN
+- name: Install mapr-spark
+  package: name=mapr-spark state=present
+- name: Find Spark Path
+  find: paths="/opt/mapr/spark" patterns="spark*" file_type=directory
+  register: spark_path_result
+  failed_when: spark_path_result.matched != 1
+- name: Find Hive Path
+  find: paths="/opt/mapr/" patterns="hive*" file_type=directory
+  register: hive_first_path_result
+- name: Find Hive Path 2
+  find: paths="/opt/mapr/hive/" patterns="hive*" file_type=directory
+  register: hive_path_result
+  when: hive_first_path_result.matched == 1
+- name: Link hive-site.xml to Spark (otherwise Spark startup throws errors)
+  file: src={{ hive_path_result.files[0].path }}/conf/hive-site.xml dest={{ spark_path_result.files[0].path }}/conf/hive-site.xml state=link
+  when: hive_first_path_result.matched == 1
+# Other actions
+- name: Create maprfs:///apps/spark
+  shell: hadoop fs -mkdir -p /apps/spark
+  environment:
+    MAPR_TICKETFILE_LOCATION: /opt/mapr/conf/mapruserticket
+  when: inventory_hostname == groups["mapr-spark-yarn"][0]
+- name: Owner maprfs:///apps/spark
+  shell: hadoop fs -chown {{ mapr_user }}:{{ mapr_group }} /apps/spark
+  environment:
+    MAPR_TICKETFILE_LOCATION: /opt/mapr/conf/mapruserticket
+  when: inventory_hostname == groups["mapr-spark-yarn"][0]
+- name: Set owner mapr-system user
+  file: path=/opt/mapr/spark owner={{ mapr_user }} group={{ mapr_group }} state=directory recurse=yes
+
+- name: Enable Spark authentication in spark-defaults.conf
+  lineinfile: dest={{ spark_path_result.files[0].path }}/conf/spark-defaults.conf regexp="^spark\.authenticate" line="spark.authenticate true"
+  when: spark_authenticate == true
+
+- name: Enable Spark SSL in spark-defaults.conf
+  lineinfile: dest={{ spark_path_result.files[0].path }}/conf/spark-defaults.conf regexp="^spark\.ssl\.fs\.enabled" line="spark.ssl.fs.enabled true"
+  when: spark_ssl_encryption == true
+
+- name: Enable Spark SSL in spark-defaults.conf
+  lineinfile: dest={{ spark_path_result.files[0].path }}/conf/spark-defaults.conf regexp="^spark\.ssl\.keyPassword" line="spark.ssl.keyPassword mapr123"
+  when: spark_ssl_encryption == true
+
+- name: Enable Spark SSL in spark-defaults.conf
+  lineinfile: dest={{ spark_path_result.files[0].path }}/conf/spark-defaults.conf regexp="^spark\.ssl\.keyStore" line="spark.ssl.keyStore /opt/mapr/conf/ssl_keystore"
+  when: spark_ssl_encryption == true
+
+- name: Enable Spark SSL in spark-defaults.conf
+  lineinfile: dest={{ spark_path_result.files[0].path }}/conf/spark-defaults.conf regexp="^spark\.ssl\.keyStorePassword" line="spark.ssl.keyStorePassword mapr123"
+  when: spark_ssl_encryption == true
+
+- name: Enable Spark SSL in spark-defaults.conf
+  lineinfile: dest={{ spark_path_result.files[0].path }}/conf/spark-defaults.conf regexp="^spark\.ssl\.trustStore" line="spark.ssl.trustStore /opt/mapr/conf/ssl_truststore"
+  when: spark_ssl_encryption == true
+
+- name: Enable Spark SSL in spark-defaults.conf
+  lineinfile: dest={{ spark_path_result.files[0].path }}/conf/spark-defaults.conf regexp="^spark\.ssl\.trustStorePassword" line="spark.ssl.trustStorePassword mapr123"
+  when: spark_ssl_encryption == true
+
+- name: Enable Spark SSL in spark-defaults.conf
+  lineinfile: dest={{ spark_path_result.files[0].path }}/conf/spark-defaults.conf regexp="^spark\.ssl\.protocol" line="spark.ssl.protocol TLSv1.2"
+  when: spark_ssl_encryption == true
+
+- name: Enable Spark SSL in spark-defaults.conf
+  lineinfile: dest={{ spark_path_result.files[0].path }}/conf/spark-defaults.conf regexp="^spark\.ssl\.enabledAlgorithms" line="spark.ssl.enabledAlgorithms TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA"
+  when: spark_ssl_encryption == true
+
+- name: Enable Spark authentication in spark-defaults.conf
+  lineinfile: dest={{ spark_path_result.files[0].path }}/conf/spark-defaults.conf regexp="^spark\.authenticate\.enableSaslEncryption" line="spark.authenticate.enableSaslEncryption true"
+  when: spark_sasl_encryption == true
