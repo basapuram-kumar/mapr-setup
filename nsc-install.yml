@@ -87,6 +87,12 @@
   hosts: mapr-mcs
   roles:
     - mapr-mcs
+- name: Install MapR WebServer
+  hosts: mapr-mcs
+  roles:
+    - mapr-webserver
+  become: true
+  become_user: root
 - name: Install NFS
   hosts: mapr-nfs
   roles:
@@ -94,14 +100,17 @@
 - name: Configure and start (unsecure)
   hosts: mapr-core
   roles:
+   - mapr-configure-vars
    - {role: mapr-configure-unsecure, when: mapr_security == 'none'}
 - name: Configure and start (native-security)
   hosts: mapr-core
   roles:
+   - mapr-configure-vars
    - {role: mapr-configure-nativesecurity-secure, when: mapr_security == 'maprsasl'}
 - name: Configure and start (kerberos)
   hosts: mapr-core
   roles:
+   - mapr-configure-vars
    - {role: mapr-configure-kerberos, when: mapr_security == 'kerberos'}
 - name: Restarting mapr-zookeeper
   hosts: mapr-zookeeper
