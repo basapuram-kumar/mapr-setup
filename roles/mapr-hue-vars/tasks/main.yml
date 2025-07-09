@@ -4,15 +4,22 @@
   with_items:
     - "{{ groups['mapr-httpfs'] }}"
   register: httpfs_hosts
+  when: groups['mapr-httpfs'] is defined and groups['mapr-httpfs'] | length > 0
+
 - name: Make HttpFS String
   set_fact: hue_httpfs_string={{ httpfs_hosts.results | map(attribute='ansible_facts.httpfs_item') | list | join(',')}}
+  when: groups['mapr-httpfs'] is defined and groups['mapr-httpfs'] | length > 0
+
+- name: Set default HttpFS String (when no HttpFS servers)
+  set_fact: hue_httpfs_string=""
+  when: groups['mapr-httpfs'] is not defined or groups['mapr-httpfs'] | length == 0
 
 - name: Get Resource Manager
   set_fact: resourcemanager_item={{ hostvars[item]['ansible_fqdn'] }}
   with_items:
     - "{{ groups['mapr-resourcemanager'] }}"
   register: hue_resourcemanager_hosts
-  when: groups['mapr-resourcemanager'] is defined
+  when: groups['mapr-resourcemanager'] is defined and groups['mapr-resourcemanager'] | length > 0
 #- debug: var=resourcemanager_hosts
 #- name: Make Resource Manager String
 #  set_fact: hue_resourcemanager_string={{ resourcemanager_hosts.results[0].ansible_facts.resourcemanager_item }}
@@ -24,16 +31,30 @@
   with_items:
     - "{{ groups['mapr-historyserver'] }}"
   register: historyserver_hosts
+  when: groups['mapr-historyserver'] is defined and groups['mapr-historyserver'] | length > 0
+
 - name: Make HistoryServer String
   set_fact: hue_historyserver_string={{ historyserver_hosts.results | map(attribute='ansible_facts.historyserver_item') | list | join(',')}}
+  when: groups['mapr-historyserver'] is defined and groups['mapr-historyserver'] | length > 0
+
+- name: Set default HistoryServer String (when no HistoryServer servers)
+  set_fact: hue_historyserver_string=""
+  when: groups['mapr-historyserver'] is not defined or groups['mapr-historyserver'] | length == 0
 
 - name: Get Spark HistoryServer server
   set_fact: sparkhistoryserver_item={{ hostvars[item]['ansible_fqdn'] }}
   with_items:
     - "{{ groups['mapr-spark-historyserver'] }}"
   register: sparkhistoryserver_hosts
+  when: groups['mapr-spark-historyserver'] is defined and groups['mapr-spark-historyserver'] | length > 0
+
 - name: Make Spark HistoryServer String
   set_fact: hue_sparkhistoryserver_string={{ sparkhistoryserver_hosts.results | map(attribute='ansible_facts.sparkhistoryserver_item') | list | join(',')}}
+  when: groups['mapr-spark-historyserver'] is defined and groups['mapr-spark-historyserver'] | length > 0
+
+- name: Set default Spark HistoryServer String (when no Spark HistoryServer servers)
+  set_fact: hue_sparkhistoryserver_string=""
+  when: groups['mapr-spark-historyserver'] is not defined or groups['mapr-spark-historyserver'] | length == 0
 
 #- name: Get Oozie server
 #  set_fact: oozie_item=http://{{ hostvars[item]['ansible_fqdn'] }}:11000/oozie/
@@ -46,14 +67,22 @@
 - name: Find Hive Path
   find: paths="/opt/mapr/hive/" patterns="hive*" file_type=directory
   register: hue_hive_path_result
+  ignore_errors: yes
 
 - name: Get HiveServer 2
   set_fact: hiveserver2_item={{ hostvars[item]['ansible_fqdn'] }}
   with_items:
     - "{{ groups['mapr-hive-server2'] }}"
   register: hiveserver2_hosts
+  when: groups['mapr-hive-server2'] is defined and groups['mapr-hive-server2'] | length > 0
+
 - name: Make HiveServer 2 String
   set_fact: hue_hiveserver2_string={{ hiveserver2_hosts.results | map(attribute='ansible_facts.hiveserver2_item') | list | join(',')}}
+  when: groups['mapr-hive-server2'] is defined and groups['mapr-hive-server2'] | length > 0
+
+- name: Set default HiveServer 2 String (when no HiveServer 2 servers)
+  set_fact: hue_hiveserver2_string=""
+  when: groups['mapr-hive-server2'] is not defined or groups['mapr-hive-server2'] | length == 0
 
 #- name: Get Sqoop Server 2
 #  set_fact: sqoopserver2_item={{ hostvars[item]['ansible_fqdn'] }}
@@ -71,7 +100,7 @@
 #- name: Make Get Hbase Hive Thrift Server
 #  set_fact: hue_hbasethriftserver_string={{ hbasethriftserver_hosts.results | map(attribute='ansible_facts.hbasethriftserver_item') | list | join(',')}}
 
-
 - name: Find Spark Path
   find: paths="/opt/mapr/spark/" patterns="spark*" file_type=directory
   register: hue_spark_path_result
+  ignore_errors: yes

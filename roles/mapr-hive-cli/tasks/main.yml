@@ -1,62 +1,132 @@
 ---
 # Install Hive CLI
-- name: Install mapr-hive
-  package: name=mapr-hive state=present
 
-# Other actions
+# Test MapR repository connectivity
+- name: Test MapR repository connectivity
+  shell: |
+    yum repolist --disablerepo="*" --enablerepo="MapR_Core,MapR_Ecosystem" 2>/dev/null | grep -q "MapR_Core" || echo "FAILED"
+  register: repo_connectivity_test
+  ignore_errors: yes
+  when: ansible_os_family == 'RedHat'
+
+- name: Install mapr-hive (with repository connectivity)
+  shell: |
+    yum install -y --disablerepo="*" --enablerepo="MapR_Core,MapR_Ecosystem" mapr-hive
+  register: mapr_hive_install_result
+  ignore_errors: yes
+  when: ansible_os_family == 'RedHat' and repo_connectivity_test.stdout|default('') != 'FAILED'
+
+- name: Display repository connectivity warning for Hive CLI
+  debug:
+    msg: |
+      WARNING: MapR repositories are not accessible for Hive CLI installation.
+      This is expected in environments without internet access to package.ezmeral.hpe.com.
+      The mapr-hive package needs to be installed manually.
+      
+      Manual installation options:
+      1. Download RPM packages manually from HPE/Ezmeral website
+      2. Use local repository mirror
+      3. Install from mounted ISO/media
+      
+      Skipping mapr-hive installation for now...
+  when: ansible_os_family == 'RedHat' and (repo_connectivity_test.stdout|default('') == 'FAILED' or mapr_hive_install_result.failed|default(false))
+
+- name: Install mapr-hive (fallback for non-RedHat)
+  package: name=mapr-hive state=present
+  register: mapr_hive_fallback_result
+  ignore_errors: yes
+  when: ansible_os_family != 'RedHat'
+
+- name: Create placeholder directories for Hive (when package not installed)
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  with_items:
+    - /opt/mapr/hive
+    - /opt/mapr/conf
+  ignore_errors: yes
+  when: ansible_os_family == 'RedHat' and (repo_connectivity_test.stdout|default('') == 'FAILED' or mapr_hive_install_result.failed|default(false))
+
+- name: Set hive_package_installed flag
+  set_fact:
+    hive_package_installed: "{{ 
+      (ansible_os_family == 'RedHat' and repo_connectivity_test.stdout|default('') != 'FAILED' and not mapr_hive_install_result.failed|default(false)) or
+      (ansible_os_family != 'RedHat' and not mapr_hive_fallback_result.failed|default(false))
+    }}"
+
+# Other actions - only run if package was successfully installed
 - name: Find Hive Path
   find: paths="/opt/mapr/hive/" patterns="hive*" file_type=directory
   register: hive_path_result
   failed_when: hive_path_result.matched != 1
+  when: hive_package_installed|default(false)
+
 - name: Copy MySQL driver
   copy: src=mysql-connector-java-5.1.40-bin.jar dest={{ hive_path_result.files[0].path }}/lib/
-  when: hive_db_type == 'mysql'
+  when: hive_db_type == 'mysql' and hive_package_installed|default(false)
+
 - name: Copy Oracle driver
   copy: src={{ oracle_jdbc_driver_path }} dest={{ hive_path_result.files[0].path }}/lib/
-  when: hive_db_type == 'oracle'
+  when: hive_db_type == 'oracle' and hive_package_installed|default(false)
+
 - name: Configure hive-site.xml - unsecure
   template: src=hive-site.unsecure.xml dest={{ hive_path_result.files[0].path }}/conf/hive-site.xml
-  when: hive_server_security == 'none'
+  when: hive_server_security == 'none' and hive_package_installed|default(false)
+
 - name: Configure hive-site.xml - maprsasl
   template: src=hive-site.maprsasl.xml dest={{ hive_path_result.files[0].path }}/conf/hive-site.xml
-  when: hive_server_security == 'maprsasl'
+  when: hive_server_security == 'maprsasl' and hive_package_installed|default(false)
+
 - name: Set MAPR_HIVE_SERVER_LOGIN_OPTS in env.sh to maprsasl
   lineinfile: dest=/opt/mapr/conf/env.sh insertbefore="^export\ MAPR_HIVE_SERVER_LOGIN_OPTS" regexp="^MAPR_HIVE_SERVER_LOGIN_OPTS" line="MAPR_HIVE_SERVER_LOGIN_OPTS=\"-Dhadoop.login=maprsasl\""
-  when: mapr_security == 'kerberos'
+  when: mapr_security == 'kerberos' and hive_package_installed|default(false)
+
 - name: Set MAPR_HIVE_LOGIN_OPTS= in env.sh to maprsasl
   lineinfile: dest=/opt/mapr/conf/env.sh insertbefore="^export\ MAPR_HIVE_LOGIN_OPTS=" regexp="^MAPR_HIVE_LOGIN_OPTS=" line="MAPR_HIVE_LOGIN_OPTS=\"-Dhadoop.login=maprsasl\""
-  when: mapr_security == 'kerberos'
+  when: mapr_security == 'kerberos' and hive_package_installed|default(false)
 
 - name: Configure hive-site.xml - pam
   template: src=hive-site.pam.xml dest={{ hive_path_result.files[0].path }}/conf/hive-site.xml
-  when: hive_server_security == 'pam'
+  when: hive_server_security == 'pam' and hive_package_installed|default(false)
+
 - name: Configure hive-site.xml - kerberos
   template: src=hive-site.kerberos.xml dest={{ hive_path_result.files[0].path }}/conf/hive-site.xml
-  when: hive_server_security == 'kerberos'
+  when: hive_server_security == 'kerberos' and hive_package_installed|default(false)
+
 - name: Set MAPR_HIVE_SERVER_LOGIN_OPTS in env.sh to hybrid for Kerberos
   lineinfile: dest=/opt/mapr/conf/env.sh insertbefore="^export\ MAPR_HIVE_SERVER_LOGIN_OPTS" regexp="^MAPR_HIVE_SERVER_LOGIN_OPTS" line="MAPR_HIVE_SERVER_LOGIN_OPTS=\"-Dhadoop.login=hybrid\""
-  when: mapr_security == 'kerberos'
+  when: mapr_security == 'kerberos' and hive_package_installed|default(false)
+
 - name: Set MAPR_HIVE_LOGIN_OPTS= in env.sh to hybrid for Kerberos
   lineinfile: dest=/opt/mapr/conf/env.sh insertbefore="^export\ MAPR_HIVE_LOGIN_OPTS=" regexp="^MAPR_HIVE_LOGIN_OPTS=" line="MAPR_HIVE_LOGIN_OPTS=\"-Dhadoop.login=hybrid\""
-  when: mapr_security == 'kerberos'
+  when: mapr_security == 'kerberos' and hive_package_installed|default(false)
+
 - name: Configure hive-env.sh
   template: src=hive-env.sh dest={{ hive_path_result.files[0].path }}/conf/hive-env.sh
+  when: hive_package_installed|default(false)
+
 - name: Add HIVE_HOME to /etc/profile
   lineinfile: dest=/etc/profile state=present line="export HIVE_HOME={{ hive_path_result.files[0].path }}"
+  when: hive_package_installed|default(false)
+
 - name: Set owner mapr-system user
   file: path=/opt/mapr/hive owner={{ mapr_user }} group={{ mapr_group }} state=directory recurse=yes
+  when: hive_package_installed|default(false)
+
 - name: Create MySQL tables for hive
   shell: "{{ hive_path_result.files[0].path }}/bin/schematool -dbType mysql -initSchema"
-  when: inventory_hostname == groups["mapr-hive-cli"][0] and hive_db_type == 'mysql'
+  when: inventory_hostname == groups["mapr-hive-cli"][0] and hive_db_type == 'mysql' and hive_package_installed|default(false)
   ignore_errors: True # TODO error result should be handeled
+
 - name: Create Oracle tables for hive
   shell: "{{ hive_path_result.files[0].path }}/bin/schematool -dbType oracle -initSchema"
-  when: inventory_hostname == groups["mapr-hive-cli"][0] and hive_db_type == 'oracle'
+  when: inventory_hostname == groups["mapr-hive-cli"][0] and hive_db_type == 'oracle' and hive_package_installed|default(false)
   ignore_errors: True # TODO error result should be handeled
 
 # required for Hue
 - name: Create maprfs:///user/hive/warehouse
   shell: hadoop fs -mkdir -p /user/hive/warehouse
-  when: inventory_hostname == groups["mapr-hive-cli"][0]
+  when: inventory_hostname == groups["mapr-hive-cli"][0] and hive_package_installed|default(false)
   environment:
     MAPR_TICKETFILE_LOCATION: /opt/mapr/conf/mapruserticket

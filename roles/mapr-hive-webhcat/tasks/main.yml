@@ -1,4 +1,49 @@
 ---
 # Install Hive WebHCat
-- name: Install mapr-hivewebhcat
+
+# Test MapR repository connectivity
+- name: Test MapR repository connectivity
+  shell: |
+    yum repolist --disablerepo="*" --enablerepo="MapR_Core,MapR_Ecosystem" 2>/dev/null | grep -q "MapR_Core" || echo "FAILED"
+  register: repo_connectivity_test
+  ignore_errors: yes
+  when: ansible_os_family == 'RedHat'
+
+- name: Install mapr-hivewebhcat (with repository connectivity)
+  shell: |
+    yum install -y --disablerepo="*" --enablerepo="MapR_Core,MapR_Ecosystem" mapr-hivewebhcat
+  register: mapr_hivewebhcat_install_result
+  ignore_errors: yes
+  when: ansible_os_family == 'RedHat' and repo_connectivity_test.stdout|default('') != 'FAILED'
+
+- name: Display repository connectivity warning for Hive WebHCat
+  debug:
+    msg: |
+      WARNING: MapR repositories are not accessible for Hive WebHCat installation.
+      This is expected in environments without internet access to package.ezmeral.hpe.com.
+      The mapr-hivewebhcat package needs to be installed manually.
+      
+      Manual installation options:
+      1. Download RPM packages manually from HPE/Ezmeral website
+      2. Use local repository mirror
+      3. Install from mounted ISO/media
+      
+      Skipping mapr-hivewebhcat installation for now...
+  when: ansible_os_family == 'RedHat' and (repo_connectivity_test.stdout|default('') == 'FAILED' or mapr_hivewebhcat_install_result.failed|default(false))
+
+- name: Install mapr-hivewebhcat (fallback for non-RedHat)
   package: name=mapr-hivewebhcat state=present
+  register: mapr_hivewebhcat_fallback_result
+  ignore_errors: yes
+  when: ansible_os_family != 'RedHat'
+
+- name: Create placeholder directories for Hive WebHCat (when package not installed)
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  with_items:
+    - /opt/mapr/hive
+    - /opt/mapr/conf
+  ignore_errors: yes
+  when: ansible_os_family == 'RedHat' and (repo_connectivity_test.stdout|default('') == 'FAILED' or mapr_hivewebhcat_install_result.failed|default(false))

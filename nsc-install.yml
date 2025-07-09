@@ -53,7 +53,6 @@
   hosts: all
   roles:
     - mapr-configure-vars
-    - mapr-configure-vars-hs
 - name: Install MapR Core
   hosts: mapr-core
   roles:

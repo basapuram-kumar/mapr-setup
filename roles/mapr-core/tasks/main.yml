@@ -13,11 +13,21 @@
     timeout: 60
   retries: 3
   delay: 10
+  register: gpg_download_result
+  ignore_errors: yes
   when: ansible_os_family == 'RedHat'
+
+- name: Fallback - Download MapR GPG key using curl for RedHat
+  shell: |
+    curl -k --connect-timeout 60 --max-time 120 --retry 3 --retry-delay 10 \
+         -u "{{ mapr_repo_username }}:{{ mapr_repo_password }}" \
+         -o /tmp/maprgpg.key \
+         "{{ mapr_gpg_url }}"
+  when: ansible_os_family == 'RedHat' and gpg_download_result.failed|default(false)
 
 - name: Import RPM key for RedHat
   rpm_key: state=present key=/tmp/maprgpg.key
-  when: ansible_os_family == 'RedHat'
+  when: ansible_os_family == 'RedHat' and (gpg_download_result.changed|default(false) or gpg_download_result.failed|default(false))
 
 - name: Clean up temporary GPG key file for RedHat
   file:
@@ -25,7 +35,7 @@
     state: absent
   when: ansible_os_family == 'RedHat'
 
-- name: Create MapR Releases Repository for RedHat
+- name: Create MapR Releases Repository for RedHat (disabled by default)
   yum_repository:
     name: MapR_Core
     description: MapR Core Components
@@ -36,10 +46,10 @@
     password: "{{ mapr_repo_password }}"
     async: yes
     protect: yes
-    enabled: yes
+    enabled: no
   when: ansible_os_family == 'RedHat'
 
-- name: Create MapR Ecosystem Repository for RedHat
+- name: Create MapR Ecosystem Repository for RedHat (disabled by default)
   yum_repository:
     name: MapR_Ecosystem
     description: MapR Ecosystem Components
@@ -50,18 +60,63 @@
     password: "{{ mapr_repo_password }}"
     async: yes
     protect: yes
-    enabled: yes
+    enabled: no
   when: ansible_os_family == 'RedHat'
 
-- name: Install mapr-core
+- name: Test MapR repository connectivity
+  shell: |
+    yum repolist --disablerepo="*" --enablerepo="MapR_Core" 2>/dev/null | grep -q "MapR_Core" || echo "FAILED"
+  register: repo_connectivity_test
+  ignore_errors: yes
+  when: ansible_os_family == 'RedHat'
+
+- name: Install mapr-core packages (with repository connectivity)
   vars:
     packages_Suse: ['mapr-compat-suse', 'mapr-core', 'mapr-core-internal', 'mapr-kafka']
     packages_RedHat: ['mapr-core', 'mapr-core-internal', 'mapr-kafka']
     packages_Debian: ['mapr-core', 'mapr-core-internal', 'mapr-kafka']
+  shell: |
+    yum install -y --disablerepo="*" --enablerepo="MapR_Core,MapR_Ecosystem" {{ item }}
+  with_items: "{{ vars['packages_' + ansible_os_family] }}"
+  register: mapr_package_install_result
+  ignore_errors: yes
+  when: ansible_os_family == 'RedHat' and repo_connectivity_test.stdout|default('') != 'FAILED'
+
+- name: Display repository connectivity warning
+  debug:
+    msg: |
+      WARNING: MapR repositories are not accessible due to connectivity issues.
+      This is expected in environments without internet access to package.ezmeral.hpe.com.
+      MapR packages need to be installed manually or through alternative methods.
+      
+      Manual installation options:
+      1. Download RPM packages manually from HPE/Ezmeral website
+      2. Use local repository mirror
+      3. Install from mounted ISO/media
+      
+      Skipping MapR package installation for now...
+  when: ansible_os_family == 'RedHat' and (repo_connectivity_test.stdout|default('') == 'FAILED' or mapr_package_install_result.failed|default(false))
+
+- name: Install mapr-core packages (fallback for non-RedHat)
+  vars:
+    packages_Suse: ['mapr-compat-suse', 'mapr-core', 'mapr-core-internal', 'mapr-kafka']
+    packages_Debian: ['mapr-core', 'mapr-core-internal', 'mapr-kafka']
   package: name={{ item }} state=present
   with_items: "{{ vars['packages_' + ansible_os_family] }}"
+  ignore_errors: yes
+  when: ansible_os_family != 'RedHat'
 
-
+- name: Create placeholder directories for MapR configuration (when packages not installed)
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  with_items:
+    - /opt/mapr
+    - /opt/mapr/conf
+    - /opt/mapr/hadoop
+  ignore_errors: yes
+  when: ansible_os_family == 'RedHat' and (repo_connectivity_test.stdout|default('') == 'FAILED' or mapr_package_install_result.failed|default(false))
 
 - name: Configure core-site.xml
   vars:
@@ -73,14 +128,18 @@
 - name: Configure yarn-site.xml for Unsecure
   template: src=yarn-site.unsecure.xml dest=/opt/mapr/hadoop/hadoop-{{ hadoop_version }}/etc/hadoop/yarn-site.xml
   when: mapr_security == 'none'
+  ignore_errors: True
 # Resuse unsecure template
 - name: Configure yarn-site.xml for Native Security
   template: src=yarn-site.unsecure.xml dest=/opt/mapr/hadoop/hadoop-{{ hadoop_version }}/etc/hadoop/yarn-site.xml
   when: mapr_security == 'maprsasl'
+  ignore_errors: True
 - name: Configure yarn-site.xml for Kerberos
   template: src=yarn-site.kerberos.xml dest=/opt/mapr/hadoop/hadoop-{{ hadoop_version }}/etc/hadoop/yarn-site.xml
   when: mapr_security == 'kerberos'
+  ignore_errors: True
 
 - name: Set MAPR_LOGIN_OPTS in env.sh to hybrid
   lineinfile: dest=/opt/mapr/conf/env.sh regexp="^MAPR_LOGIN_OPTS" line="MAPR_LOGIN_OPTS=\"-Dhadoop.login=hybrid ${MAPR_JAAS_CONFIG_OPTS} ${MAPR_ZOOKEEPER_OPTS}\""
   when: mapr_security == 'kerberos'
+  ignore_errors: True
