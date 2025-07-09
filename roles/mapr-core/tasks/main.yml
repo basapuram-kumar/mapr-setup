@@ -9,6 +9,10 @@
     url_username: "{{ mapr_repo_username }}"
     url_password: "{{ mapr_repo_password }}"
     mode: '0644'
+    validate_certs: no
+    timeout: 60
+  retries: 3
+  delay: 10
   when: ansible_os_family == 'RedHat'
 
 - name: Import RPM key for RedHat

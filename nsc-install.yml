@@ -1,3 +1,24 @@
+- name: Global cleanup - Remove any existing MapR repositories
+  hosts: all
+  tasks:
+    - name: Remove existing MapR repository files
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - /etc/yum.repos.d/MapR_Core.repo
+        - /etc/yum.repos.d/MapR_Ecosystem.repo
+        - /etc/yum.repos.d/maprpatch.repo
+        - /etc/yum.repos.d/MapR_Core.repo.disabled
+        - /etc/yum.repos.d/MapR_Ecosystem.repo.disabled
+        - /etc/yum.repos.d/maprpatch.repo.disabled
+      when: ansible_os_family == 'RedHat'
+    - name: Clean yum cache after repository removal
+      command: yum clean all
+      when: ansible_os_family == 'RedHat'
+  become: true
+  become_user: root
+
 - name: Copying hosts names to all /etc/hosts nodes
   hosts: mapr-hosts
   roles:

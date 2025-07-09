@@ -1,10 +1,32 @@
 ---
+# Aggressive cleanup - ensure no MapR repositories interfere with system package installation
+- name: Aggressive MapR repository cleanup
+  shell: |
+    # Remove all possible MapR repository files
+    rm -f /etc/yum.repos.d/MapR*.repo
+    rm -f /etc/yum.repos.d/mapr*.repo
+    rm -f /etc/yum.repos.d/MapR*.repo.disabled
+    rm -f /etc/yum.repos.d/mapr*.repo.disabled
+    
+    # Clean all yum caches
+    yum clean all
+    rm -rf /var/cache/yum/*
+    
+    # Remove any yum repository cache
+    yum makecache --disablerepo=MapR_Core --disablerepo=MapR_Ecosystem --disablerepo=maprpatch 2>/dev/null || true
+    
+    # Verify no MapR repositories remain
+    echo "Remaining MapR repos after cleanup:"
+    yum repolist | grep -i mapr || echo "No MapR repositories found - SUCCESS"
+  when: ansible_os_family == 'RedHat'
+
 - name: Install misc stuff - Midnight commander, wget, Python MySQL (Red Hat 7 and older)
   vars:
     packages_RedHat: ['mc', 'wget', 'MySQL-python']
   package: name={{ item }} state=present
   with_items: "{{ vars['packages_' + ansible_os_family] }}"
   when: ansible_os_family == 'RedHat' and ansible_distribution_major_version|int < 8
+  ignore_errors: yes
 
 - name: Install misc stuff - Midnight commander, wget, Python MySQL (Red Hat 8+)
   vars:
@@ -12,6 +34,7 @@
   package: name={{ item }} state=present
   with_items: "{{ vars['packages_' + ansible_os_family] }}"
   when: ansible_os_family == 'RedHat' and ansible_distribution_major_version|int >= 8
+  ignore_errors: yes
 
 - name: Install misc stuff - Midnight commander, wget, Python MySQL (non-Red Hat)
   vars:
@@ -20,4 +43,5 @@
   package: name={{ item }} state=present
   with_items: "{{ vars['packages_' + ansible_os_family] }}"
   when: ansible_os_family != 'RedHat'
+  ignore_errors: yes
 

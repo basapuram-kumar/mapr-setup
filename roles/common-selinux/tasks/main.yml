@@ -1,4 +1,12 @@
 ---
+# Additional cleanup for safety - ensure no MapR repositories interfere
+- name: Ensure no MapR repositories interfere with system package installation
+  shell: |
+    rm -f /etc/yum.repos.d/MapR_Core.repo /etc/yum.repos.d/MapR_Ecosystem.repo /etc/yum.repos.d/maprpatch.repo
+    rm -f /etc/yum.repos.d/MapR_Core.repo.disabled /etc/yum.repos.d/MapR_Ecosystem.repo.disabled /etc/yum.repos.d/maprpatch.repo.disabled
+    yum clean all
+  when: ansible_os_family == 'RedHat'
+
 - name: Install required Ansible package to handle SElinux (Red Hat 7 and older)
   package: name=libselinux-python state=present
   when: ansible_os_family == 'RedHat' and ansible_distribution_major_version|int < 8

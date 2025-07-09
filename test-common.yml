@@ -1,0 +1,13 @@
+- name: Test common configuration only
+  hosts: common
+  roles:
+    - common-prereq
+    - common-selinux
+    - {role: common-openjdk18, when: jdk == 'openjdk18'}
+    - {role: common-mapruser, when: mapr_create_user == true}
+    - common-rpcbind
+    - common-ntp
+    - common-misc
+    - common-sysctl
+  become: true
+  become_user: root 
