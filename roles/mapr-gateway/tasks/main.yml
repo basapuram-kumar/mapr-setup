@@ -1,0 +1,5 @@
+---
+# Install CLDB
+
+- name: Install mapr-gateway
+  package: name=mapr-gateway state=present

@@ -1,0 +1,181 @@
+---
+
+- name: Download MapR GPG key with authentication for RedHat
+  get_url:
+    url: "{{ mapr_gpg_url }}"
+    dest: /tmp/maprgpg.key
+    url_username: "{{ mapr_repo_username }}"
+    url_password: "{{ mapr_repo_password }}"
+    mode: '0644'
+    validate_certs: no
+    timeout: 60
+  retries: 3
+  delay: 10
+  register: gpg_download_result
+  ignore_errors: yes
+  when: ansible_os_family == 'RedHat'
+
+- name: Fallback - Download MapR GPG key using curl for RedHat
+  shell: |
+    curl -k --connect-timeout 60 --max-time 120 --retry 3 --retry-delay 10 \
+         -u "{{ mapr_repo_username }}:{{ mapr_repo_password }}" \
+         -o /tmp/maprgpg.key \
+         "{{ mapr_gpg_url }}"
+  when: ansible_os_family == 'RedHat' and gpg_download_result.failed|default(false)
+
+- name: Import RPM key for RedHat
+  rpm_key: state=present key=/tmp/maprgpg.key
+  when: ansible_os_family == 'RedHat'
+
+- name: Clean up temporary GPG key file for RedHat
+  file:
+    path: /tmp/maprgpg.key
+    state: absent
+  when: ansible_os_family == 'RedHat'
+
+- name: Create MapR Releases Repository for RedHat
+  yum_repository:
+    name: MapR_Core
+    description: MapR Core Components
+    baseurl: "{{ mapr_release_url }}"
+    gpgcheck: yes
+    gpgkey: "{{ mapr_gpg_url }}"
+    username: "{{ mapr_repo_username }}"
+    password: "{{ mapr_repo_password }}"
+    async: yes
+    protect: yes
+    enabled: yes
+  when: ansible_os_family == 'RedHat'
+- name: Create MapR Ecosystem Repository for RedHat
+  yum_repository:
+    name: MapR_Ecosystem
+    description: MapR Ecosystem Components
+    baseurl: "{{ mapr_ecosystem_url }}"
+    gpgcheck: yes
+    gpgkey: "{{ mapr_gpg_url }}"
+    username: "{{ mapr_repo_username }}"
+    password: "{{ mapr_repo_password }}"
+    async: yes
+    protect: yes
+    enabled: yes
+  when: ansible_os_family == 'RedHat'
+- name: Create MapR Patch Repository for RedHat
+  yum_repository:
+    name: maprpatch
+    description: MapR Technologies
+    baseurl: "{{ mapr_patch_url }}"
+    gpgcheck: no
+    gpgkey: "{{ mapr_gpg_url }}"
+    username: "{{ mapr_repo_username }}"
+    password: "{{ mapr_repo_password }}"
+    async: yes
+    protect: yes
+    enabled: yes
+  when: ansible_os_family == 'RedHat' and mapr_patch_url is defined
+
+- name: Download MapR GPG key with authentication for Ubuntu
+  get_url:
+    url: "{{ mapr_gpg_url }}"
+    dest: /tmp/maprgpg.key
+    url_username: "{{ mapr_repo_username }}"
+    url_password: "{{ mapr_repo_password }}"
+    mode: '0644'
+    validate_certs: no
+    timeout: 60
+  retries: 3
+  delay: 10
+  register: gpg_download_result_ubuntu
+  ignore_errors: yes
+  when: ansible_os_family == 'Debian'
+
+- name: Fallback - Download MapR GPG key using curl for Ubuntu
+  shell: |
+    curl -k --connect-timeout 60 --max-time 120 --retry 3 --retry-delay 10 \
+         -u "{{ mapr_repo_username }}:{{ mapr_repo_password }}" \
+         -o /tmp/maprgpg.key \
+         "{{ mapr_gpg_url }}"
+  when: ansible_os_family == 'Debian' and gpg_download_result_ubuntu.failed|default(false)
+
+- name: Import GPG key for Ubuntu
+  apt_key: state=present file=/tmp/maprgpg.key
+  when: ansible_os_family == 'Debian'
+
+- name: Clean up temporary GPG key file for Ubuntu
+  file:
+    path: /tmp/maprgpg.key
+    state: absent
+  when: ansible_os_family == 'Debian'
+
+- name: Create MapR Releases Repository for Ubuntu
+  apt_repository:
+    repo: "deb {{ mapr_release_url }}/ubuntu/ mapr optional"
+    state: present
+    update_cache: yes
+    validate_certs: no
+  when: ansible_os_family == 'Debian'
+- name: Create MapR Ecosystem Repository for Ubuntu
+  apt_repository:
+    repo: "deb {{ mapr_ecosystem_url }}/ubuntu/ binary trusty"
+    state: present
+    update_cache: yes
+    validate_certs: no
+  when: ansible_os_family == 'Debian'
+
+- name: Update cache for Ubuntu
+  apt: update_cache=yes
+  when: ansible_os_family == 'Debian'
+
+- name: Download MapR GPG key with authentication for Suse
+  get_url:
+    url: "{{ mapr_gpg_url }}"
+    dest: /tmp/maprgpg.key
+    url_username: "{{ mapr_repo_username }}"
+    url_password: "{{ mapr_repo_password }}"
+    mode: '0644'
+    validate_certs: no
+    timeout: 60
+  retries: 3
+  delay: 10
+  register: gpg_download_result_suse
+  ignore_errors: yes
+  when: ansible_os_family == 'Suse'
+
+- name: Fallback - Download MapR GPG key using curl for Suse
+  shell: |
+    curl -k --connect-timeout 60 --max-time 120 --retry 3 --retry-delay 10 \
+         -u "{{ mapr_repo_username }}:{{ mapr_repo_password }}" \
+         -o /tmp/maprgpg.key \
+         "{{ mapr_gpg_url }}"
+  when: ansible_os_family == 'Suse' and gpg_download_result_suse.failed|default(false)
+
+- name: Import RPM key for Suse
+  rpm_key: state=present key=/tmp/maprgpg.key
+  when: ansible_os_family == 'Suse'
+
+- name: Clean up temporary GPG key file for Suse
+  file:
+    path: /tmp/maprgpg.key
+    state: absent
+  when: ansible_os_family == 'Suse'
+
+- name: Create MapR Releases Repository for Suse
+  zypper_repository:
+    name: maprtech
+    repo: "{{ mapr_release_url }}/suse/"
+    disable_gpg_check: no
+    state: present
+  when: ansible_os_family == 'Suse'
+- name: Create MapR Ecosystem Repository for Suse
+  zypper_repository:
+    name: maprecosystem
+    repo: "{{ mapr_ecosystem_url }}/suse/"
+    disable_gpg_check: no
+    state: present
+  when: ansible_os_family == 'Suse'
+- name: Create MapR Patch Repository for Suse
+  zypper_repository:
+    name: maprpatch
+    repo: "{{ mapr_patch_url }}/redhat/"
+    disable_gpg_check: yes
+    state: present
+  when: ansible_os_family == 'Suse' and mapr_patch_url is defined

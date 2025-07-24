@@ -1,0 +1,3 @@
+- name:  moving service account ticket to /home directory
+  shell: mv  /tmp/longlived_ticket_{{service_account_name_user}} /home
+

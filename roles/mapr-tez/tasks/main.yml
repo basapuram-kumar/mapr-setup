@@ -1,0 +1,6 @@
+---
+# Install Tez
+- name: Install mapr-tez
+  package: name={{ item }} state=present
+  with_items:
+  - mapr-tez

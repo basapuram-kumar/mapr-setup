@@ -1,0 +1,2 @@
+- name: change owner of /user/kumar directory to kumar
+  shell: hadoop fs -chown -R {{service_account_name_user}}:{{service_account_name_user}}  /user/{{service_account_name_user}}

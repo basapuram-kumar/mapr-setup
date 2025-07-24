@@ -1,0 +1,4 @@
+# Copying all hosts to all cluster nodes
+- name: Copying host names to all nodes
+  template: src=hive-site.unsecure.xml dest={{ hive_path_result.files[0].path }}/conf/hive-site.xml
+  when: hive_server_security == 'none'
