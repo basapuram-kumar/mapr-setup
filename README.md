@@ -1,6 +1,7 @@
 # Ansible scripts for MapR Cluster setup
 
 Please follow below steps to install cluster from scratch
+
  Supported OS details
  ---------------------
  CentOS-7
@@ -10,7 +11,8 @@ Please follow below steps to install cluster from scratch
  MapR - v6.1.1
  MapR - MEP-6.3.6
 
-
+Steps
+-----
  Step 1:
  Make sure to have Passwordless login to all the cluster hosts.
 
